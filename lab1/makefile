@@ -1,5 +1,6 @@
-#debug: lab1.cpp
-	#g++ -fno-builtin -g lab1.cpp -o lab1
+debug:
+	g++ -fno-builtin -g fast.cpp
+
 all: slow.o fast.o
 	g++ -o fast fast.o
 	g++ -o slow slow.o

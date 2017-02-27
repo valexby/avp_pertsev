@@ -6,7 +6,7 @@
 
 using namespace std;
 
-const size_t GLOB_SZ = 128, ELEM_SZ = 4, VECT_SZ = 4;
+const size_t GLOB_SZ = 1, ELEM_SZ = 16, VECT_SZ = 4;
 
 union Mat {
 	float m[ELEM_SZ][ELEM_SZ];
@@ -29,36 +29,48 @@ void gen_element(Mat &element)
 	}
 }
 
-template <size_t N>
-static inline void lines_sum(__m128 (&out) [N], const __m128 *addition)
+static inline void lines_sum(__m128 *out, __m128 *addition)
 {
 	size_t i;
 	for (i=0;i<ELEM_SZ/VECT_SZ;i++)
 		out[i] = _mm_add_ps(out[i], addition[i]);
 }
 
-template <size_t N>
-static inline __m128* vector_mul_line(const __m128 &a, const __m128 (&b) [N], int pos)
+template <size_t N, size_t M>
+static inline __m128* vector_mul_line(const __m128 &a, const __m128 (&b) [N][M], size_t pos)
 {
-	size_t i;
-	__m128 multiplier, *result = new __m128[ELEM_SZ/VECT_SZ];
-	switch (pos)
-	{
-		case 0:
-			multiplier = _mm_shuffle_ps(a, a, _MM_SHUFFLE(0, 0, 0, 0));
-			break;
-		case 1:
-			multiplier = _mm_shuffle_ps(a, a, _MM_SHUFFLE(1, 1, 1, 1));
-			break;
-		case 2:
-			multiplier = _mm_shuffle_ps(a, a, _MM_SHUFFLE(2, 2, 2, 2));
-			break;
-		case 3:
-			multiplier = _mm_shuffle_ps(a, a, _MM_SHUFFLE(3, 3, 3, 3));
-			break;
-	}
-	for (i=0;i<ELEM_SZ/VECT_SZ;i++) 
-		result[i] = _mm_mul_ps(multiplier, b[i]);
+	__m128 multiplier, *result = new __m128[ELEM_SZ/VECT_SZ], 
+		*buffer = new __m128[ELEM_SZ/VECT_SZ];
+	
+	multiplier = _mm_shuffle_ps(a, a, _MM_SHUFFLE(0, 0, 0, 0));
+	result[0] = _mm_mul_ps(multiplier, b[(pos * 4) + 0][0]);
+	result[1] = _mm_mul_ps(multiplier, b[(pos * 4) + 0][1]);
+	result[2] = _mm_mul_ps(multiplier, b[(pos * 4) + 0][2]);
+	result[3] = _mm_mul_ps(multiplier, b[(pos * 4) + 0][3]);
+
+	multiplier = _mm_shuffle_ps(a, a, _MM_SHUFFLE(1, 1, 1, 1));
+	buffer[0] = _mm_mul_ps(multiplier, b[(pos * 4) + 1][0]);
+	buffer[1] = _mm_mul_ps(multiplier, b[(pos * 4) + 1][1]);
+	buffer[2] = _mm_mul_ps(multiplier, b[(pos * 4) + 1][2]);
+	buffer[3] = _mm_mul_ps(multiplier, b[(pos * 4) + 1][3]);
+	lines_sum(result, buffer);
+
+	multiplier = _mm_shuffle_ps(a, a, _MM_SHUFFLE(2, 2, 2, 2));
+	buffer[0] = _mm_mul_ps(multiplier, b[(pos * 4) + 2][0]);
+	buffer[1] = _mm_mul_ps(multiplier, b[(pos * 4) + 2][1]);
+	buffer[2] = _mm_mul_ps(multiplier, b[(pos * 4) + 2][2]);
+	buffer[3] = _mm_mul_ps(multiplier, b[(pos * 4) + 2][3]);
+	lines_sum(result, buffer);
+
+	multiplier = _mm_shuffle_ps(a, a, _MM_SHUFFLE(3, 3, 3, 3));
+	buffer[0] = _mm_mul_ps(multiplier, b[(pos * 4) + 3][0]);
+	buffer[1] = _mm_mul_ps(multiplier, b[(pos * 4) + 3][1]);
+	buffer[2] = _mm_mul_ps(multiplier, b[(pos * 4) + 3][2]);
+	buffer[3] = _mm_mul_ps(multiplier, b[(pos * 4) + 3][3]);
+	lines_sum(result, buffer);
+	
+	delete[] buffer;
+
 	return result;
 }
 
@@ -66,9 +78,9 @@ template <size_t N>
 static inline void lincomb_SSE(__m128 (&out) [N], const __m128 (&a) [N], const Mat &B)
 {
 	size_t i;
-	for (i=0;i<ELEM_SZ;i++)
+	for (i=0;i<ELEM_SZ/VECT_SZ;i++)
 	{
-		__m128 *mul_res = vector_mul_line(a[i/VECT_SZ], B.row[i], i % VECT_SZ);
+		__m128 *mul_res = vector_mul_line(a[i], B.row, i);
 		if (i == 0)
 			memcpy(out, mul_res, sizeof(out));
 		else
@@ -102,8 +114,7 @@ void matmult_simple(Mat &out, const Mat &A, const Mat &B)
 		}
 }
 
-#pragma GCC pop_options
-
+#pragma GCC pop_options 
 void matadd(Mat &out, const Mat &A)
 {
 	size_t i, j;
@@ -166,8 +177,8 @@ int main()
 	if ( !matcmp(res_simple, res_sse) )
 		cout << "Test failed!\n";
 	else
-		cout << "C time: " << (float)time_simple / CLOCKS_PER_SEC << 
-			"\nSSE time: " << (float)time_sse / CLOCKS_PER_SEC << endl;
+		cout << "C time: " << (float)time_simple * 1000 / CLOCKS_PER_SEC << 
+			"\nSSE time: " << (float)time_sse * 1000/ CLOCKS_PER_SEC << endl;
 	for (i=0;i<GLOB_SZ;i++)
 	{
 		delete[] m1[i];
