@@ -38,14 +38,13 @@ int main(void)
 
 	generate(&(dummy[0]));
 
-	for (i = 1;i < 2; i++)
+	for (i = 1;i < 20; i++)
 	{
-		i = 12;
 		t_sum = 0;
 		for (d = 0;d < 10; d++)
 		{
 			check = generate(&(arr[0]));
-			//clear();
+			clear();
 			time = clock();
 			sum = 0;
 			for (j = 0;j < SIZE / i; j++)
