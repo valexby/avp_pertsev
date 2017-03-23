@@ -36,7 +36,7 @@ int main(void)
 	register clock_t time, t_sum;
 	scanf("%d", &check);
 
-	generate(&(dummy[0]));
+	generate(dummy);
 
 	for (i = 1;i < 20; i++)
 	{
